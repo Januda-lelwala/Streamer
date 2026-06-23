@@ -195,6 +195,8 @@ function escapeHtml(value) {
 
 function formatResultTitle(name) {
     return String(name ?? '')
+        .replace(/([)\]}])(?=[A-Za-z0-9])/g, '$1 ')
+        .replace(/([A-Za-z0-9])(?=[([{])/g, '$1 ')
         .replace(/[._+]+/g, ' ')
         .replace(/\s*-\s*/g, ' - ')
         .replace(/\s+/g, ' ')

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Torrent Streamer",
+  "productName": "Streamer",
   "version": "1.0.0",
   "identifier": "com.janudax.torrent-streamer",
   "build": {
@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Torrent Streamer",
+        "title": "Streamer",
         "width": 1200,
         "height": 800,
         "resizable": true,

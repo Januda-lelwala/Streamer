@@ -1,4 +1,4 @@
-# Torrent Streamer (Tauri)
+# Streamer (Tauri)
 
 A desktop application for searching torrents and streaming them in real time
 to VLC while they download. This is a **Tauri** rewrite of the original
