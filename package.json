@@ -1,0 +1,14 @@
+{
+  "name": "torrent-streamer",
+  "version": "1.0.0",
+  "description": "A desktop application for streaming torrents in real-time (Tauri)",
+  "license": "MIT",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}
