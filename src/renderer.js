@@ -193,6 +193,14 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function formatResultTitle(name) {
+    return String(name ?? '')
+        .replace(/[._+]+/g, ' ')
+        .replace(/\s*-\s*/g, ' - ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 // Helper: set the bottom status bar's visual state (drives progress + stat
 // colours via CSS) and enable/disable the action buttons.
 function setStatusBarState(state) {
@@ -486,13 +494,14 @@ function displayResults(data) {
         resultsContainer.innerHTML = validResults.map(result => {
             const seeds = Number(result.seeds) || 0;
             const seedClass = seeds > 50 ? 'high' : seeds > 10 ? 'mid' : '';
-            const safeName = escapeHtml(result.name);
+            const safeName = escapeHtml(formatResultTitle(result.name));
+            const rawName = escapeHtml(result.name);
             const safeSize = escapeHtml(result.size || 'Unknown size');
             const safeProvider = escapeHtml(result.provider);
             return `
             <div class="result-card">
                 <div class="result-main">
-                    <h3 class="result-title" title="${safeName}">${safeName}</h3>
+                    <h3 class="result-title" title="${rawName}">${safeName}</h3>
                     <div class="result-meta">
                         <span class="pill pill-size">${safeSize}</span>
                         <span class="pill pill-seeds ${seedClass}">&uarr; ${seeds} seeders</span>
