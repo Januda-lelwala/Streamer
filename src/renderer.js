@@ -21,27 +21,12 @@ const elements = {
     searchInput: null,
     searchBtn: null,
     resultsContainer: null,
-    videoPlayer: null,
-    videoPlaceholder: null,
-    progressContainer: null,
     progressBar: null,
     statusText: null,
     downloadSpeed: null,
     downloaded: null,
     totalSize: null,
-    mediaPlayerModal: null,
-    closeMediaPlayer: null,
-    customVideoPlayer: null,
-    customAudioPlayer: null,
-    playPauseBtn: null,
-    playPauseIcon: null,
-    seekBar: null,
-    currentTimeLabel: null,
-    durationLabel: null,
-    volumeSlider: null,
-    muteBtn: null,
-    fullscreenBtn: null,
-    closeBtn: null
+    stopBtn: null
 };
 
 // Function to launch the media player
@@ -50,80 +35,22 @@ async function launchMediaPlayer() {
         await window.api.invoke('launch-media-player');
     } catch (error) {
         console.error('Error launching media player:', error);
-        
-        const statusElement = document.getElementById('status');
-        if (statusElement) {
-            statusElement.textContent = `Error launching media player: ${error.message}`;
-        }
+        updateElement('status', 'Player launch failed');
+        updateElement('status-text', error.message);
     }
 }
 
 // Function to stop the current stream
 async function stopStream() {
     try {
-        // Call the stop-stream IPC method
         await window.api.invoke('stop-stream');
-        
-        // Hide the bottom status bar
         hideBottomStatusBar();
-        
-        // Reset progress elements
-        const progressBar = document.getElementById('progressBar');
-        if (progressBar) {
-            progressBar.style.width = '0%';
-        }
-        
-        const statusElement = document.getElementById('status');
-        if (statusElement) {
-            statusElement.textContent = 'Download stopped';
-        }
-        
-        const statusTextElement = document.getElementById('status-text');
-        if (statusTextElement) {
-            statusTextElement.textContent = '';
-        }
-        
-        // Reset stats
-        const downloadSpeedElement = document.getElementById('downloadSpeed');
-        if (downloadSpeedElement) {
-            downloadSpeedElement.textContent = '0 MB/s';
-        }
-        
-        const downloadedElement = document.getElementById('downloaded');
-        if (downloadedElement) {
-            downloadedElement.textContent = '0 MB';
-        }
-        
-        const totalSizeElement = document.getElementById('totalSize');
-        if (totalSizeElement) {
-            totalSizeElement.textContent = '0 MB';
-        }
-        
-        const numPeersElement = document.getElementById('numPeers');
-        if (numPeersElement) {
-            numPeersElement.textContent = '0';
-        }
-        
-        // Disable launch button
-        const launchPlayerBtn = document.getElementById('launchPlayerBtn');
-        if (launchPlayerBtn) {
-            launchPlayerBtn.disabled = true;
-            launchPlayerBtn.className = 'bg-gray-500 px-6 py-2 rounded-lg font-medium transition-colors text-gray-300 cursor-not-allowed';
-        }
-        
-        // Hide video placeholder
-        const videoPlaceholder = document.getElementById('video-placeholder');
-        if (videoPlaceholder) {
-            videoPlaceholder.style.display = 'none';
-        }
-        
+        updateElement('status', 'Download stopped');
+        updateElement('status-text', 'Select another torrent to start streaming');
     } catch (error) {
         console.error('Error stopping stream:', error);
-        
-        const statusElement = document.getElementById('status');
-        if (statusElement) {
-            statusElement.textContent = `Error stopping stream: ${error.message}`;
-        }
+        updateElement('status', 'Stop failed');
+        updateElement('status-text', error.message);
     }
 }
 
@@ -131,51 +58,6 @@ async function stopStream() {
 document.addEventListener('DOMContentLoaded', () => {
     initElements();
     setupEventListeners();
-    setupIpcHandlers();
-    setupMediaControls();
-    setupVideoResizeHandler();
-});
-
-// IPC Event Listeners
-window.api.receive('stream-started', (streamUrl) => {
-    console.log('Stream started:', streamUrl);
-    
-    const videoPlayer = document.getElementById('video-player');
-    if (!videoPlayer) {
-        console.error('Video player element not found');
-        return;
-    }
-    
-    // Set the video source to the stream URL
-    videoPlayer.src = streamUrl;
-    
-    // Show the video player and hide the placeholder
-    videoPlayer.style.display = 'block';
-    const videoPlaceholder = document.getElementById('video-placeholder');
-    if (videoPlaceholder) {
-        videoPlaceholder.style.display = 'none';
-    }
-    
-    // Set up event listeners for the video player
-    videoPlayer.addEventListener('loadedmetadata', () => {
-        console.log('Video metadata loaded');
-        videoPlayer.play().catch(error => {
-            console.error('Error playing video:', error);
-        });
-    });
-    
-    videoPlayer.addEventListener('error', (error) => {
-        console.error('Video player error:', error);
-        const statusElement = document.getElementById('status-text');
-        if (statusElement) {
-            statusElement.textContent = 'Error loading video. Please try another stream.';
-        }
-    });
-});
-
-// Handle download progress updates
-window.api.receive('download-progress', (progress) => {
-    updateProgressDisplay(progress);
 });
 
 // Handle search results
@@ -186,24 +68,9 @@ window.api.receive('search-results', (results) => {
 // Handle stream errors
 window.api.receive('stream-error', (error) => {
     console.error('Stream error:', error);
-    const statusElement = document.getElementById('status-text');
-    if (statusElement) {
-        statusElement.textContent = `Error: ${error.message || 'Failed to start stream'}`;
-    }
-    
-    // Re-enable UI elements if needed
-    const streamBtn = document.getElementById('stream-btn');
-    if (streamBtn) streamBtn.disabled = false;
-});
-
-// Handle stream started
-window.api.receive('stream-started', (streamInfo) => {
-    console.log('Stream started:', streamInfo);
-    const statusElement = document.getElementById('status-text');
-    if (statusElement) {
-        statusElement.textContent = `VLC launched! Playing: ${streamInfo.name}`;
-        statusElement.className = 'text-green-400';
-    }
+    updateElement('status', 'Stream error');
+    updateElement('status-text', error.message || 'Failed to start stream');
+    setStatusBarState('idle');
 });
 
 // Handle download progress
@@ -218,9 +85,8 @@ window.api.receive('media-player-ready', (data) => {
     console.log('[DEBUG] Launch button element found:', !!launchPlayerBtn);
     if (launchPlayerBtn) {
         console.log('[DEBUG] Enabling launch button');
-        // Enable the button and change styling
+        // Enable the button (styling handled by its .btn-primary class).
         launchPlayerBtn.disabled = false;
-        launchPlayerBtn.className = 'bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-medium transition-colors text-white cursor-pointer';
     } else {
         console.error('[DEBUG] Launch button element not found!');
     }
@@ -230,15 +96,14 @@ window.api.receive('media-player-ready', (data) => {
         statusElement.textContent = 'Ready to launch media player';
         console.log('[DEBUG] Status updated to: Ready to launch media player');
     }
+    updateElement('status-text', data.fileName ? `Buffered enough to play: ${data.fileName}` : 'Buffered enough to play');
 });
 
 // Handle media player launched event
 window.api.receive('media-player-launched', (data) => {
     console.log('Media player launched:', data);
-    const statusElement = document.getElementById('status');
-    if (statusElement) {
-        statusElement.textContent = `Media player launched: ${data.fileName}`;
-    }
+    updateElement('status', 'Media player launched');
+    updateElement('status-text', data.fileName || 'Playing in VLC');
 });
 
 // Function to update progress display
@@ -319,156 +184,82 @@ function updateElement(id, text) {
     }
 }
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// Helper: set the bottom status bar's visual state (drives progress + stat
+// colours via CSS) and enable/disable the action buttons.
+function setStatusBarState(state) {
+    const bars = [
+        document.getElementById('bottom-status-bar'),
+        document.getElementById('minimized-status-bar')
+    ];
+    bars.forEach((bar) => {
+        if (!bar) return;
+        bar.classList.remove('is-idle', 'is-downloading', 'is-paused');
+        bar.classList.add(`is-${state}`);
+    });
+
+    const active = state !== 'idle';
+    ['launchPlayerBtn', 'stopBtn', 'pauseResumeBtn', 'mini-stopBtn', 'mini-pauseResumeBtn']
+        .forEach((id) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            // The launch button is enabled separately (when buffered enough).
+            if (id === 'launchPlayerBtn') {
+                if (!active) el.disabled = true;
+                return;
+            }
+            el.disabled = !active;
+        });
+
+    // Pause/Resume buttons swap label + accent colour with the state.
+    const paused = state === 'paused';
+    ['pauseResumeBtn', 'mini-pauseResumeBtn'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = paused ? 'Resume' : 'Pause';
+        el.classList.toggle('btn-success', paused);
+        el.classList.toggle('btn-warning', !paused);
+    });
+}
+
 // Function to set status bar to idle state
 function setStatusBarIdle() {
     updateElement('status', 'No video selected');
     updateElement('status-text', 'Search and select a torrent to start streaming');
     updateElement('mini-status', 'No video selected');
-    
-    // Reset all stats to idle state
-    updateElement('downloadSpeed', '--');
-    updateElement('downloaded', '--');
-    updateElement('totalSize', '--');
-    updateElement('progressPercent', '--');
-    updateElement('numPeers', '--');
-    updateElement('eta', '--');
-    updateElement('mini-speed', '--');
-    
-    // Reset progress bars
+
+    ['downloadSpeed', 'downloaded', 'totalSize', 'progressPercent', 'numPeers', 'eta', 'mini-speed']
+        .forEach((id) => updateElement(id, '--'));
+
     const progressBar = document.getElementById('progressBar');
     const miniProgressBar = document.getElementById('mini-progressBar');
-    if (progressBar) {
-        progressBar.style.width = '0%';
-        progressBar.className = 'bg-gray-600 h-2 rounded-full transition-all duration-300';
-    }
-    if (miniProgressBar) {
-        miniProgressBar.style.width = '0%';
-    }
-    
-    // Disable buttons
-    const launchBtn = document.getElementById('launchPlayerBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const pauseResumeBtn = document.getElementById('pauseResumeBtn');
-    const miniStopBtn = document.getElementById('mini-stopBtn');
-    const miniPauseResumeBtn = document.getElementById('mini-pauseResumeBtn');
-    
-    if (launchBtn) {
-        launchBtn.disabled = true;
-        launchBtn.className = 'bg-gray-500 px-4 py-1 rounded font-medium transition-colors text-gray-300 cursor-not-allowed text-sm';
-    }
-    if (stopBtn) {
-        stopBtn.disabled = true;
-        stopBtn.className = 'bg-gray-500 px-4 py-1 rounded font-medium transition-colors text-gray-300 cursor-not-allowed text-sm';
-    }
-    if (pauseResumeBtn) {
-        pauseResumeBtn.disabled = true;
-        pauseResumeBtn.className = 'bg-gray-500 px-4 py-1 rounded font-medium transition-colors text-gray-300 cursor-not-allowed text-sm';
-        pauseResumeBtn.textContent = 'Pause';
-    }
-    if (miniStopBtn) {
-        miniStopBtn.disabled = true;
-        miniStopBtn.className = 'bg-gray-500 px-3 py-1 rounded font-medium transition-colors text-gray-300 cursor-not-allowed text-sm';
-    }
-    if (miniPauseResumeBtn) {
-        miniPauseResumeBtn.disabled = true;
-        miniPauseResumeBtn.className = 'bg-gray-500 px-3 py-1 rounded font-medium transition-colors text-gray-300 cursor-not-allowed text-sm';
-        miniPauseResumeBtn.textContent = 'Pause';
-    }
-    
-    // Make stats text gray
-    const statElements = ['downloadSpeed', 'downloaded', 'totalSize', 'progressPercent', 'numPeers', 'eta'];
-    statElements.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.className = 'text-gray-500 font-medium';
-        }
-    });
+    if (progressBar) progressBar.style.width = '0%';
+    if (miniProgressBar) miniProgressBar.style.width = '0%';
+
+    setStatusBarState('idle');
 }
 
 // Function to set status bar to downloading state
 function setStatusBarDownloading() {
-    // Enable pause/resume and stop buttons
-    const stopBtn = document.getElementById('stopBtn');
-    const pauseResumeBtn = document.getElementById('pauseResumeBtn');
-    const miniStopBtn = document.getElementById('mini-stopBtn');
-    const miniPauseResumeBtn = document.getElementById('mini-pauseResumeBtn');
-    
-    if (stopBtn) {
-        stopBtn.disabled = false;
-        stopBtn.className = 'bg-red-600 hover:bg-red-700 px-4 py-1 rounded font-medium transition-colors text-white text-sm';
-    }
-    if (pauseResumeBtn) {
-        pauseResumeBtn.disabled = false;
-        pauseResumeBtn.className = 'bg-yellow-600 hover:bg-yellow-700 px-4 py-1 rounded font-medium transition-colors text-white text-sm';
-        pauseResumeBtn.textContent = 'Pause';
-    }
-    if (miniStopBtn) {
-        miniStopBtn.disabled = false;
-        miniStopBtn.className = 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded font-medium transition-colors text-white text-sm';
-    }
-    if (miniPauseResumeBtn) {
-        miniPauseResumeBtn.disabled = false;
-        miniPauseResumeBtn.className = 'bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded font-medium transition-colors text-white text-sm';
-        miniPauseResumeBtn.textContent = 'Pause';
-    }
-    
-    // Make progress bar blue
-    const progressBar = document.getElementById('progressBar');
-    if (progressBar) {
-        progressBar.className = 'bg-blue-600 h-2 rounded-full transition-all duration-300';
-    }
-    
-    // Make stats text white
-    const statElements = ['downloadSpeed', 'downloaded', 'totalSize', 'progressPercent', 'numPeers', 'eta'];
-    statElements.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.className = 'text-white font-medium';
-        }
-    });
+    setStatusBarState('downloading');
 }
 
 // Function to set status bar to paused state
 function setStatusBarPaused() {
-    // Update status text
     updateElement('status', 'Download paused');
     updateElement('status-text', 'Click Resume to continue downloading');
     updateElement('mini-status', 'Paused');
-    
-    // Enable resume and stop buttons
-    const stopBtn = document.getElementById('stopBtn');
-    const pauseResumeBtn = document.getElementById('pauseResumeBtn');
-    const miniStopBtn = document.getElementById('mini-stopBtn');
-    const miniPauseResumeBtn = document.getElementById('mini-pauseResumeBtn');
-    
-    if (stopBtn) {
-        stopBtn.disabled = false;
-        stopBtn.className = 'bg-red-600 hover:bg-red-700 px-4 py-1 rounded font-medium transition-colors text-white text-sm';
-    }
-    if (pauseResumeBtn) {
-        pauseResumeBtn.disabled = false;
-        pauseResumeBtn.className = 'bg-green-600 hover:bg-green-700 px-4 py-1 rounded font-medium transition-colors text-white text-sm';
-        pauseResumeBtn.textContent = 'Resume';
-    }
-    if (miniStopBtn) {
-        miniStopBtn.disabled = false;
-        miniStopBtn.className = 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded font-medium transition-colors text-white text-sm';
-    }
-    if (miniPauseResumeBtn) {
-        miniPauseResumeBtn.disabled = false;
-        miniPauseResumeBtn.className = 'bg-green-600 hover:bg-green-700 px-3 py-1 rounded font-medium transition-colors text-white text-sm';
-        miniPauseResumeBtn.textContent = 'Resume';
-    }
-    
-    // Make progress bar orange to indicate paused state
-    const progressBar = document.getElementById('progressBar');
-    if (progressBar) {
-        progressBar.className = 'bg-orange-500 h-2 rounded-full transition-all duration-300';
-    }
-    
-    // Keep stats text white but update speed to show paused
-    updateElement('downloadSpeed', '0 MB/s (Paused)');
+    updateElement('downloadSpeed', 'Paused');
     updateElement('mini-speed', 'Paused');
+    setStatusBarState('paused');
 }
 
 // Function to show bottom status bar (now always visible, just ensure padding)
@@ -481,6 +272,10 @@ function showBottomStatusBar() {
 function hideBottomStatusBar() {
     // Instead of hiding, reset to idle state
     setStatusBarIdle();
+    const bottomStatusBar = document.getElementById('bottom-status-bar');
+    const minimizedStatusBar = document.getElementById('minimized-status-bar');
+    if (bottomStatusBar) bottomStatusBar.classList.remove('hidden');
+    if (minimizedStatusBar) minimizedStatusBar.classList.add('hidden');
     // Keep the status bar visible with proper padding
     document.body.style.paddingBottom = '140px';
 }
@@ -516,220 +311,31 @@ function initElements() {
     elements.searchInput = document.getElementById('searchInput');
     elements.searchBtn = document.getElementById('searchBtn');
     elements.resultsContainer = document.getElementById('resultsContainer');
-    elements.videoPlayer = document.getElementById('videoPlayer');
-    elements.videoPlaceholder = document.getElementById('videoPlaceholder');
-    elements.progressContainer = document.getElementById('progressContainer');
     elements.progressBar = document.getElementById('progressBar');
     elements.statusText = document.getElementById('status');
     elements.downloadSpeed = document.getElementById('downloadSpeed');
     elements.downloaded = document.getElementById('downloaded');
     elements.totalSize = document.getElementById('totalSize');
-
-    // Media player elements
-    elements.mediaPlayerModal = document.getElementById('mediaPlayerModal');
-    elements.closeMediaPlayer = document.getElementById('closeMediaPlayer');
-    elements.customVideoPlayer = document.getElementById('customVideoPlayer');
-    elements.customAudioPlayer = document.getElementById('customAudioPlayer');
-    elements.playPauseBtn = document.getElementById('playPauseBtn');
-    elements.playPauseIcon = document.getElementById('playPauseIcon');
-    elements.seekBar = document.getElementById('seekBar');
     elements.stopBtn = document.getElementById('stopBtn');
 }
 
 function setupEventListeners() {
     const searchBtn = document.getElementById('searchBtn');
     const searchInput = document.getElementById('searchInput');
-    const stopBtn = document.getElementById('stopBtn');
     
     if (searchBtn) {
         searchBtn.addEventListener('click', handleSearch);
     }
     
     if (searchInput) {
-        searchInput.addEventListener('keypress', (e) => {
+        searchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') handleSearch();
         });
     }
-    
-    if (stopBtn) {
-        stopBtn.addEventListener('click', stopStream);
-    }
-    
+
     const launchPlayerBtn = document.getElementById('launchPlayerBtn');
     if (launchPlayerBtn) {
         launchPlayerBtn.addEventListener('click', launchMediaPlayer);
-    }
-    
-    // Media player controls
-    if (elements.mediaPlayerModal && elements.closeMediaPlayer) {
-        elements.closeMediaPlayer.addEventListener('click', () => {
-            elements.mediaPlayerModal.style.display = 'none';
-        });
-    }
-}
-
-function setupIpcHandlers() {
-    // IPC handlers are now set up globally above
-    // This function can be used for other setup if needed
-}
-
-// Helper function to format bytes to human readable string
-function formatBytes(bytes, decimals = 2) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-}
-
-// Helper function to format seconds to human readable time
-function formatTimeDetailed(seconds) {
-    if (seconds === Infinity) return '∞';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    
-    if (h > 0) {
-        return `${h}h ${m}m ${s}s`;
-    } else if (m > 0) {
-        return `${m}m ${s}s`;
-    } else {
-        return `${s}s`;
-    }
-}
-
-// Helper function to format time
-function formatTime(seconds) {
-    if (isNaN(seconds)) return '0:00';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-// --- Custom Modal Player Controls ---
-function getCurrentMedia() {
-    return elements.customVideoPlayer && !elements.customVideoPlayer.paused ? elements.customVideoPlayer :
-           elements.customAudioPlayer && !elements.customAudioPlayer.paused ? elements.customAudioPlayer : null;
-}
-
-// Handle window resize to maintain aspect ratio
-function handleResize() {
-    const { customVideoPlayer } = elements;
-    if (!customVideoPlayer) return;
-    
-    const container = customVideoPlayer.parentElement;
-    const containerWidth = container.clientWidth;
-    const containerHeight = container.clientHeight;
-    
-    const videoRatio = customVideoPlayer.videoWidth / customVideoPlayer.videoHeight;
-    const containerRatio = containerWidth / containerHeight;
-    
-    if (containerRatio > videoRatio) {
-        // Container is wider than video aspect ratio
-        customVideoPlayer.style.width = `${containerHeight * videoRatio}px`;
-        customVideoPlayer.style.height = `${containerHeight}px`;
-    } else {
-        // Container is taller than video aspect ratio
-        customVideoPlayer.style.width = `${containerWidth}px`;
-        customVideoPlayer.style.height = `${containerWidth / videoRatio}px`;
-    }
-}
-
-// Set up window resize handler
-function setupVideoResizeHandler() {
-    const { customVideoPlayer } = elements;
-    if (customVideoPlayer) {
-        customVideoPlayer.addEventListener('loadedmetadata', handleResize);
-        window.addEventListener('resize', handleResize);
-    }
-}
-
-// Set up media controls
-function setupMediaControls() {
-    if (elements.mediaPlayerModal) {
-        // Play/Pause toggle
-        elements.playPauseBtn.addEventListener('click', () => {
-            const media = getCurrentMedia();
-            if (!media) return;
-            if (media.paused) {
-                media.play();
-                elements.playPauseIcon.textContent = '\u23F8'; // Pause
-            } else {
-                media.pause();
-                elements.playPauseIcon.textContent = '\u25B6'; // Play
-            }
-        });
-
-        // Update play/pause icon on play/pause
-        [elements.customVideoPlayer, elements.customAudioPlayer].forEach(media => {
-            media.addEventListener('play', () => {
-                elements.playPauseIcon.textContent = '\u23F8';
-            });
-            media.addEventListener('pause', () => {
-                elements.playPauseIcon.textContent = '\u25B6';
-            });
-        });
-
-        // Seek bar
-        [elements.customVideoPlayer, elements.customAudioPlayer].forEach(media => {
-            media.addEventListener('timeupdate', () => {
-                if (elements.seekBar) {
-                    elements.seekBar.value = media.duration ? (media.currentTime / media.duration) * 100 : 0;
-                    elements.currentTimeLabel.textContent = formatTime(media.currentTime);
-                    elements.durationLabel.textContent = formatTime(media.duration);
-                }
-            });
-            media.addEventListener('loadedmetadata', () => {
-                if (elements.seekBar) {
-                    elements.seekBar.max = 100;
-                    elements.durationLabel.textContent = formatTime(media.duration);
-                }
-            });
-        });
-        if (elements.seekBar) {
-            elements.seekBar.addEventListener('input', () => {
-                const media = getCurrentMedia();
-                if (media && media.duration) {
-                    const seekTo = (elements.seekBar.value / 100) * media.duration;
-                    elements.currentTimeLabel.textContent = formatTime(seekTo);
-                }
-            });
-            elements.seekBar.addEventListener('change', () => {
-                const media = getCurrentMedia();
-                if (media && media.duration) {
-                    media.currentTime = (elements.seekBar.value / 100) * media.duration;
-                }
-            });
-        }
-
-        // Volume
-        if (elements.volumeBar) {
-            elements.volumeBar.addEventListener('input', () => {
-                const media = getCurrentMedia();
-                if (media) {
-                    media.volume = elements.volumeBar.value;
-                    elements.volumeLabel.textContent = Math.round(elements.volumeBar.value * 100) + '%';
-                }
-            });
-        }
-
-        // Close modal
-        elements.closeMediaPlayer.addEventListener('click', () => {
-            elements.mediaPlayerModal.classList.add('hidden');
-            // Pause and reset both players
-            elements.customVideoPlayer.pause();
-            elements.customAudioPlayer.pause();
-            elements.customVideoPlayer.src = '';
-            elements.customAudioPlayer.src = '';
-        });
-
-        // ESC key closes modal
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !elements.mediaPlayerModal.classList.contains('hidden')) {
-                elements.closeMediaPlayer.click();
-            }
-        });
     }
 }
 
@@ -804,25 +410,25 @@ function displayResults(data) {
     elements.searchBtn.textContent = 'Search';
     
     // Handle both old format (array) and new format (object with pagination)
-    let results, page, totalPages, totalResults;
+    let results, page, resultTotalPages, resultTotalResults;
     if (Array.isArray(data)) {
         // Old format - for backward compatibility
         results = data;
         page = 1;
-        totalPages = 1;
-        totalResults = data.length;
+        resultTotalPages = 1;
+        resultTotalResults = data.length;
     } else {
         // New paginated format
         results = data.results || [];
         page = data.page || 1;
-        totalPages = data.totalPages || 0;
-        totalResults = data.totalResults || 0;
+        resultTotalPages = data.totalPages || 0;
+        resultTotalResults = data.totalResults || 0;
     }
     
     // Update pagination state
     currentPage = page;
-    window.totalPages = totalPages;
-    window.totalResults = totalResults;
+    totalPages = resultTotalPages;
+    totalResults = resultTotalResults;
     
     // Clear previous results
     resultsContainer.innerHTML = '';
@@ -831,8 +437,8 @@ function displayResults(data) {
     const resultsInfo = document.getElementById('resultsInfo');
     const resultsCount = document.getElementById('resultsCount');
     if (resultsInfo && resultsCount) {
-        if (totalResults > 0) {
-            resultsCount.textContent = `${totalResults} results found`;
+        if (resultTotalResults > 0) {
+            resultsCount.textContent = `${resultTotalResults} results found`;
             resultsInfo.classList.remove('hidden');
         } else {
             resultsInfo.classList.add('hidden');
@@ -841,7 +447,8 @@ function displayResults(data) {
     
     if (!results || !Array.isArray(results) || results.length === 0) {
         resultsContainer.innerHTML = `
-            <div class="text-center py-8 text-gray-400">
+            <div class="empty-state">
+                <span class="empty-icon">?</span>
                 <p>No results found. Try a different search term.</p>
             </div>
         `;
@@ -867,7 +474,8 @@ function displayResults(data) {
 
         if (validResults.length === 0) {
             resultsContainer.innerHTML = `
-                <div class="text-center py-8 text-gray-400">
+                <div class="empty-state">
+                    <span class="empty-icon">0</span>
                     <p>No valid torrents found. Try a different search term.</p>
                 </div>
             `;
@@ -875,17 +483,27 @@ function displayResults(data) {
         }
 
         // Display the valid results
-        resultsContainer.innerHTML = validResults.map(result => `
-            <div class="bg-gray-700 p-4 rounded-lg hover:bg-gray-600 transition-colors cursor-pointer mb-2" 
-                 data-magnet="${result.magnet}">
-                <h3 class="font-medium text-lg mb-1 truncate" title="${result.name}">${result.name}</h3>
-                <div class="flex justify-between text-sm text-gray-400">
-                    <span>${result.size || 'Unknown size'}</span>
-                    <span>👥 ${result.seeds || 0} seeders</span>
+        resultsContainer.innerHTML = validResults.map(result => {
+            const seeds = Number(result.seeds) || 0;
+            const seedClass = seeds > 50 ? 'high' : seeds > 10 ? 'mid' : '';
+            const safeName = escapeHtml(result.name);
+            const safeSize = escapeHtml(result.size || 'Unknown size');
+            const safeProvider = escapeHtml(result.provider);
+            return `
+            <div class="result-card">
+                <div class="result-main">
+                    <h3 class="result-title" title="${safeName}">${safeName}</h3>
+                    <div class="result-meta">
+                        <span class="pill pill-size">${safeSize}</span>
+                        <span class="pill pill-seeds ${seedClass}">&uarr; ${seeds} seeders</span>
+                        ${result.provider ? `<span class="pill pill-provider">${safeProvider}</span>` : ''}
+                    </div>
                 </div>
-                ${result.provider ? `<div class="text-xs text-gray-500 mt-1">Source: ${result.provider}</div>` : ''}
-            </div>
-        `).join('');
+                <span class="result-play">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.14v14l11-7-11-7z"></path></svg>
+                </span>
+            </div>`;
+        }).join('');
 
         // Add click handlers to result items
         document.querySelectorAll('#resultsContainer > div').forEach((item, index) => {
@@ -894,14 +512,15 @@ function displayResults(data) {
         });
         
         // Setup pagination controls
-        setupPagination(page, totalPages);
+        setupPagination(page, resultTotalPages);
 
     } catch (error) {
         console.error('Error displaying results:', error);
         resultsContainer.innerHTML = `
-            <div class="text-center py-8 text-red-400">
+            <div class="empty-state error">
+                <span class="empty-icon">!</span>
                 <p>Error displaying results. Please try again.</p>
-                <p class="text-xs mt-2">${error.message}</p>
+                <p class="error-detail">${escapeHtml(error.message)}</p>
             </div>
         `;
         // Hide pagination on error
@@ -992,10 +611,8 @@ function addPageButton(pageNum, currentPage) {
     const button = document.createElement('button');
     
     button.textContent = pageNum;
-    button.className = pageNum === currentPage 
-        ? 'px-3 py-2 bg-blue-600 text-white rounded-md font-medium'
-        : 'px-3 py-2 bg-gray-700 text-gray-300 rounded-md hover:bg-gray-600 transition-colors';
-    
+    button.className = pageNum === currentPage ? 'page-btn active' : 'page-btn';
+
     if (pageNum !== currentPage) {
         button.onclick = () => performSearch(currentSearchQuery, pageNum);
     }
@@ -1006,7 +623,7 @@ function addPageButton(pageNum, currentPage) {
 function createEllipsis() {
     const span = document.createElement('span');
     span.textContent = '...';
-    span.className = 'px-2 py-2 text-gray-400';
+    span.className = 'page-ellipsis';
     return span;
 }
 
@@ -1036,12 +653,12 @@ async function onSelectTorrent(magnet, name) {
     }
 
     if (files.length === 1) {
-        // Single video (typical movie) — stream it directly.
+        // Single video (typical movie): stream it directly.
         startStream(magnet, name, files[0].fileId);
         return;
     }
 
-    // Multiple video files — show the episode/file picker.
+    // Multiple video files: show the episode/file picker.
     showEpisodeModal(magnet, name, files);
 }
 
@@ -1052,19 +669,23 @@ function showEpisodeModal(magnet, name, files) {
     const title = document.getElementById('episodeModalTitle');
     if (!modal || !list) return;
 
-    if (title) title.textContent = `${name} — ${files.length} files`;
+    if (title) title.textContent = `${name} - ${files.length} files`;
 
     list.innerHTML = files
         .map(
-            (f) => `
-            <button
-                type="button"
-                data-file-id="${f.fileId}"
-                class="w-full text-left bg-gray-700 hover:bg-blue-600 transition-colors rounded-lg p-3 flex justify-between items-center gap-4"
-            >
-                <span class="truncate" title="${f.name.replace(/"/g, '&quot;')}">${f.name}</span>
-                <span class="text-sm text-gray-300 whitespace-nowrap">${f.sizeHuman}</span>
-            </button>`
+            (f) => {
+                const safeName = escapeHtml(f.name);
+                const safeSize = escapeHtml(f.sizeHuman || '');
+                const fileId = Number(f.fileId);
+                return `
+            <button type="button" class="file-item" data-file-id="${fileId}">
+                <span class="file-item-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.14v14l11-7-11-7z"></path></svg>
+                </span>
+                <span class="file-item-name" title="${safeName}">${safeName}</span>
+                <span class="file-item-size">${safeSize}</span>
+            </button>`;
+            }
         )
         .join('');
 
@@ -1112,11 +733,11 @@ async function startStream(magnet, name, fileId = null) {
     const launchPlayerBtn = document.getElementById('launchPlayerBtn');
     if (launchPlayerBtn) {
         launchPlayerBtn.disabled = true;
-        launchPlayerBtn.className = 'bg-gray-500 px-4 py-1 rounded font-medium transition-colors text-gray-300 cursor-not-allowed text-sm';
     }
-    
+
     // Show the bottom status bar immediately
     showBottomStatusBar();
+    setStatusBarDownloading();
     
     // Initialize progress display
     const statusEl = document.getElementById('status');
@@ -1124,43 +745,19 @@ async function startStream(magnet, name, fileId = null) {
         statusEl.textContent = 'Connecting to peers...';
     }
     
-    // Hide any existing video
-    const videoPlayer = document.getElementById('video-player');
-    if (videoPlayer) {
-        videoPlayer.style.display = 'none';
-        videoPlayer.src = '';
-    }
-    
-    // Show the video placeholder
-    const videoPlaceholder = document.getElementById('video-placeholder');
-    if (videoPlaceholder) {
-        videoPlaceholder.style.display = 'flex';
-        videoPlaceholder.textContent = 'Loading stream...';
-    }
-    
     try {
         // Send request to start the stream using invoke for proper response handling
-        const result = await window.api.invoke('start-stream', { magnet, fileId });
+        await window.api.invoke('start-stream', { magnet, fileId });
         
         // Update status
         if (statusElement) {
-            statusElement.textContent = 'Stream started - VLC should be opening...';
+            statusElement.textContent = 'Downloading selected file. Player unlocks after buffering.';
         }
     } catch (error) {
         console.error('Error starting stream:', error);
-        
-        // Show error state
-        if (statusElement) {
-            statusElement.textContent = `Error: ${error.message}`;
-        }
-        
-        // Hide bottom status bar on error
         hideBottomStatusBar();
-        
-        // Show error in video placeholder
-        if (videoPlaceholder) {
-            videoPlaceholder.textContent = `Failed to start stream: ${error.message}`;
-        }
+        updateElement('status', 'Stream failed');
+        updateElement('status-text', error.message);
     }
 }
 
@@ -1266,11 +863,9 @@ function saveSettings() {
     if (saveBtn) {
         const originalText = saveBtn.textContent;
         saveBtn.textContent = 'Saved!';
-        saveBtn.className = 'bg-green-700 px-6 py-2 rounded-lg font-medium transition-colors';
         
         setTimeout(() => {
             saveBtn.textContent = originalText;
-            saveBtn.className = 'bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-medium transition-colors';
         }, 2000);
     }
 }
@@ -1368,4 +963,3 @@ window.api.receive('stream-resumed', (data) => {
     console.log('Stream resumed event received:', data);
     setStatusBarDownloading();
 });
-

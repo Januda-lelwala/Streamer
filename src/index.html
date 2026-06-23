@@ -5,348 +5,233 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Torrent Streamer</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-900 text-white min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <header class="mb-8 relative">
-            <h1 class="text-3xl font-bold text-center mb-6">Torrent Streamer</h1>
-
-            <!-- Settings Icon -->
-            <button
-                id="settingsIcon"
-                class="absolute top-0 right-0 p-2 text-gray-400 hover:text-white transition-colors"
-                title="Settings"
-            >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 5.14v14l11-7-11-7z" fill="currentColor" stroke="none"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1>Torrent Streamer</h1>
+                    <p>Search, stream, watch instantly</p>
+                </div>
+            </div>
+            <button id="settingsIcon" class="icon-btn" title="Settings">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                 </svg>
             </button>
         </header>
 
-        <!-- Main Content -->
-        <div id="streamingContent">
-            <!-- Search Bar -->
-            <div class="flex gap-4 mb-6">
-                <input
-                    type="text"
-                    id="searchInput"
-                    placeholder="Search for torrents..."
-                    class="flex-1 p-3 rounded-lg bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                <button
-                    id="searchBtn"
-                    class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-medium transition-colors"
-                >
-                    Search
-                </button>
-            </div>
+        <!-- Search Bar -->
+        <div class="search-bar">
+            <input type="text" id="searchInput" class="search-input" placeholder="Search for movies, shows, anything...">
+            <button id="searchBtn" class="btn btn-primary">Search</button>
+        </div>
 
-            <!-- Loading Indicator -->
-            <div id="loadingIndicator" class="hidden max-w-4xl mx-auto mb-6">
-                <div class="bg-gray-800 rounded-lg p-8">
-                    <div class="flex flex-col items-center justify-center">
-                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-                        <p class="text-gray-300 text-lg font-medium">Searching for torrents...</p>
-                        <p class="text-gray-500 text-sm mt-2">This may take a few seconds</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Centered Search Results -->
-            <div class="max-w-4xl mx-auto">
-                <div class="bg-gray-800 rounded-lg p-6">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-semibold">Search Results</h2>
-                        <div id="resultsInfo" class="text-sm text-gray-400 hidden">
-                            <span id="resultsCount">0 results</span>
-                        </div>
-                    </div>
-                    <div id="resultsContainer" class="space-y-4 overflow-y-auto max-h-[500px]">
-                        <p class="text-gray-500 text-center py-12 text-lg">Search for torrents to see results</p>
-                    </div>
-
-                    <!-- Pagination Controls -->
-                    <div id="paginationContainer" class="hidden mt-6 flex justify-center items-center gap-2">
-                        <button id="prevPage" class="px-3 py-2 bg-gray-700 text-gray-300 rounded-md hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                            ← Previous
-                        </button>
-
-                        <div id="pageNumbers" class="flex gap-1">
-                            <!-- Page numbers will be inserted here -->
-                        </div>
-
-                        <button id="nextPage" class="px-3 py-2 bg-gray-700 text-gray-300 rounded-md hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                            Next →
-                        </button>
-                    </div>
-                </div>
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="loader hidden">
+            <div class="loader-inner">
+                <div class="spinner"></div>
+                <p class="loader-main">Searching for torrents...</p>
+                <p class="loader-sub">This may take a few seconds</p>
             </div>
         </div>
 
-        <!-- Settings Popup Modal -->
-        <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center" style="z-index: 9999 !important;">
-            <div class="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <!-- Modal Header -->
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-semibold">Settings</h2>
-                    <button id="closeSettingsModal" class="text-gray-400 hover:text-white transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
+        <!-- Search Results -->
+        <div class="panel">
+            <div class="panel-head">
+                <h2>Search Results</h2>
+                <div id="resultsInfo" class="results-info hidden">
+                    <span id="resultsCount">0 results</span>
+                </div>
+            </div>
+
+            <div id="resultsContainer" class="results">
+                <div class="empty-state">
+                    <span class="empty-icon">&#9658;</span>
+                    <p>Search for torrents to see results</p>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div id="paginationContainer" class="pagination hidden">
+                <button id="prevPage" class="page-nav" disabled>&larr; Prev</button>
+                <div id="pageNumbers" class="page-numbers"></div>
+                <button id="nextPage" class="page-nav" disabled>Next &rarr;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+        <div class="modal-card wide">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button id="closeSettingsModal" class="modal-close" title="Close">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="settings-group">
+                    <h3>General</h3>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Download Directory</div>
+                            <div class="setting-desc">Choose where torrents are downloaded</div>
+                        </div>
+                        <div class="field-row">
+                            <input type="text" id="downloadPath" class="field" placeholder="/tmp/torrents" readonly>
+                            <button id="browseBtn" class="btn btn-ghost btn-sm">Browse</button>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Settings Content -->
-                <div id="settingsContent">
+                <div class="settings-group">
+                    <h3>Media Player</h3>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Minimum Download Size</div>
+                            <div class="setting-desc">Data to buffer before enabling playback</div>
+                        </div>
+                        <select id="minDownloadSize" class="field">
+                            <option value="512">512 KB</option>
+                            <option value="1024" selected>1 MB</option>
+                            <option value="2048">2 MB</option>
+                            <option value="5120">5 MB</option>
+                            <option value="10240">10 MB</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">VLC Path</div>
+                            <div class="setting-desc">Custom VLC path (leave empty for auto-detect)</div>
+                        </div>
+                        <input type="text" id="vlcPath" class="field path-field"
+                            placeholder="/Applications/VLC.app/Contents/MacOS/VLC">
+                    </div>
+                </div>
 
-
-                    <!-- General Settings -->
-                    <div class="mb-8">
-                        <h3 class="text-lg font-medium mb-4 text-blue-400">General</h3>
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <label class="text-white font-medium">Download Directory</label>
-                                    <p class="text-gray-400 text-sm">Choose where torrents are downloaded</p>
-                                </div>
-                                <div class="flex gap-2">
-                                    <input
-                                        type="text"
-                                        id="downloadPath"
-                                        placeholder="/tmp/torrents"
-                                        class="px-3 py-2 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        readonly
-                                    >
-                                    <button
-                                        id="browseBtn"
-                                        class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md font-medium transition-colors"
-                                    >
-                                        Browse
-                                    </button>
-                                </div>
-                            </div>
+                <div class="settings-group">
+                    <h3>Torrent</h3>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Max Download Speed</div>
+                            <div class="setting-desc">Maximum download speed (0 = unlimited)</div>
+                        </div>
+                        <div class="field-row">
+                            <input type="number" id="maxDownloadSpeed" class="field numeric-field" placeholder="0" min="0">
+                            <span class="unit">MB/s</span>
                         </div>
                     </div>
-
-                    <!-- Media Player Settings -->
-                    <div class="mb-8">
-                        <h3 class="text-lg font-medium mb-4 text-blue-400">Media Player</h3>
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <label class="text-white font-medium">Minimum Download Size</label>
-                                    <p class="text-gray-400 text-sm">Amount of data to download before enabling media player launch</p>
-                                </div>
-                                <select
-                                    id="minDownloadSize"
-                                    class="px-3 py-2 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    <option value="512">512 KB</option>
-                                    <option value="1024" selected>1 MB</option>
-                                    <option value="2048">2 MB</option>
-                                    <option value="5120">5 MB</option>
-                                    <option value="10240">10 MB</option>
-                                </select>
-                            </div>
-
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <label class="text-white font-medium">VLC Path</label>
-                                    <p class="text-gray-400 text-sm">Custom path to VLC media player (leave empty for auto-detection)</p>
-                                </div>
-                                <input
-                                    type="text"
-                                    id="vlcPath"
-                                    placeholder="/Applications/VLC.app/Contents/MacOS/VLC"
-                                    class="px-3 py-2 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-80"
-                                >
-                            </div>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Max Upload Speed</div>
+                            <div class="setting-desc">Maximum upload speed (0 = unlimited)</div>
+                        </div>
+                        <div class="field-row">
+                            <input type="number" id="maxUploadSpeed" class="field numeric-field" placeholder="0" min="0">
+                            <span class="unit">MB/s</span>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Torrent Settings -->
-                    <div class="mb-8">
-                        <h3 class="text-lg font-medium mb-4 text-blue-400">Torrent</h3>
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <label class="text-white font-medium">Max Download Speed</label>
-                                    <p class="text-gray-400 text-sm">Maximum download speed (0 = unlimited)</p>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <input
-                                        type="number"
-                                        id="maxDownloadSpeed"
-                                        placeholder="0"
-                                        min="0"
-                                        class="px-3 py-2 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-20"
-                                    >
-                                    <span class="text-gray-400">MB/s</span>
-                                </div>
-                            </div>
-
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <label class="text-white font-medium">Max Upload Speed</label>
-                                    <p class="text-gray-400 text-sm">Maximum upload speed (0 = unlimited)</p>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <input
-                                        type="number"
-                                        id="maxUploadSpeed"
-                                        placeholder="0"
-                                        min="0"
-                                        class="px-3 py-2 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-20"
-                                    >
-                                    <span class="text-gray-400">MB/s</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Save Button -->
-                    <div class="flex justify-end">
-                        <button
-                            id="saveSettingsBtn"
-                            class="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-medium transition-colors"
-                        >
-                            Save Settings
-                        </button>
-                    </div>
+                <div class="modal-actions">
+                    <button id="saveSettingsBtn" class="btn btn-success">Save Settings</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Episode / File Selection Modal -->
-    <div id="episodeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center" style="z-index: 9999 !important;">
-        <div class="bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
-            <div class="flex justify-between items-center mb-2">
-                <h2 class="text-2xl font-semibold">Select a file to stream</h2>
-                <button id="closeEpisodeModal" class="text-gray-400 hover:text-white transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div id="episodeModal" class="modal hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Select a file to stream</h2>
+                <button id="closeEpisodeModal" class="modal-close" title="Close">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
-            <p id="episodeModalTitle" class="text-gray-400 text-sm mb-4 truncate"></p>
-            <div id="episodeList" class="space-y-2 overflow-y-auto pr-1">
-                <!-- File buttons inserted here -->
-            </div>
+            <p id="episodeModalTitle" class="modal-subtitle"></p>
+            <div id="episodeList" class="file-list modal-body"></div>
         </div>
     </div>
 
     <!-- Bottom Status Bar -->
-    <div id="bottom-status-bar" class="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 z-50">
-        <div class="container mx-auto px-4 py-3">
-            <!-- Status Header -->
-            <div class="flex justify-between items-center mb-2">
-                <div class="flex items-center gap-3">
-                    <span id="status" class="text-white font-medium">No video selected</span>
-                    <span id="status-text" class="text-gray-400 text-sm">Search and select a torrent to start streaming</span>
+    <div id="bottom-status-bar" class="statusbar is-idle">
+        <div class="statusbar-inner">
+            <div class="statusbar-row">
+                <div class="status-meta">
+                    <span id="status" class="status-title">No video selected</span>
+                    <span id="status-text" class="status-sub">Search and select a torrent to start streaming</span>
                 </div>
-                <div class="flex gap-2">
-                    <button
-                        id="launchPlayerBtn"
-                        class="bg-gray-500 px-4 py-1 rounded font-medium transition-colors text-gray-300 cursor-not-allowed text-sm"
-                        disabled
-                    >
-                        Launch Media Player
-                    </button>
-                    <button
-                        id="pauseResumeBtn"
-                        class="bg-gray-500 px-4 py-1 rounded font-medium transition-colors text-gray-300 cursor-not-allowed text-sm"
-                        disabled
-                    >
-                        Pause
-                    </button>
-                    <button
-                        id="stopBtn"
-                        class="bg-gray-500 px-4 py-1 rounded font-medium transition-colors text-gray-300 cursor-not-allowed text-sm"
-                        disabled
-                    >
-                        Stop
-                    </button>
-                    <button
-                        id="minimizeStatusBtn"
-                        class="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded font-medium transition-colors text-white text-sm"
-                        title="Minimize status bar"
-                    >
-                        ▼
-                    </button>
+                <div class="status-actions">
+                    <button id="launchPlayerBtn" class="btn btn-primary btn-sm" disabled>&#9658; Launch Player</button>
+                    <button id="pauseResumeBtn" class="btn btn-warning btn-sm" disabled>Pause</button>
+                    <button id="stopBtn" class="btn btn-danger btn-sm" disabled>Stop</button>
+                    <button id="minimizeStatusBtn" class="btn btn-ghost btn-sm" title="Minimize">&#9662;</button>
                 </div>
             </div>
 
-            <!-- Progress Bar -->
-            <div class="w-full bg-gray-700 rounded-full h-2 mb-3">
-                <div id="progressBar" class="bg-gray-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            <div class="progress">
+                <div id="progressBar" class="progress-fill"></div>
             </div>
 
-            <!-- Download Stats -->
-            <div id="download-stats" class="grid grid-cols-2 md:grid-cols-6 gap-4 text-xs">
-                <div class="text-center">
-                    <div class="text-gray-400">Speed</div>
-                    <div id="downloadSpeed" class="text-gray-500 font-medium">--</div>
+            <div id="download-stats" class="stat-grid">
+                <div class="stat">
+                    <div class="stat-label">Speed</div>
+                    <div id="downloadSpeed" class="stat-value">--</div>
                 </div>
-                <div class="text-center">
-                    <div class="text-gray-400">Downloaded</div>
-                    <div id="downloaded" class="text-gray-500 font-medium">--</div>
+                <div class="stat">
+                    <div class="stat-label">Downloaded</div>
+                    <div id="downloaded" class="stat-value">--</div>
                 </div>
-                <div class="text-center">
-                    <div class="text-gray-400">Total Size</div>
-                    <div id="totalSize" class="text-gray-500 font-medium">--</div>
+                <div class="stat">
+                    <div class="stat-label">Total Size</div>
+                    <div id="totalSize" class="stat-value">--</div>
                 </div>
-                <div class="text-center">
-                    <div class="text-gray-400">Progress</div>
-                    <div id="progressPercent" class="text-gray-500 font-medium">--</div>
+                <div class="stat">
+                    <div class="stat-label">Progress</div>
+                    <div id="progressPercent" class="stat-value">--</div>
                 </div>
-                <div class="text-center">
-                    <div class="text-gray-400">Peers</div>
-                    <div id="numPeers" class="text-gray-500 font-medium">--</div>
+                <div class="stat">
+                    <div class="stat-label">Peers</div>
+                    <div id="numPeers" class="stat-value">--</div>
                 </div>
-                <div class="text-center">
-                    <div class="text-gray-400">ETA</div>
-                    <div id="eta" class="text-gray-500 font-medium">--</div>
+                <div class="stat">
+                    <div class="stat-label">ETA</div>
+                    <div id="eta" class="stat-value">--</div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Minimized Status Bar -->
-    <div id="minimized-status-bar" class="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 z-50 hidden">
-        <div class="container mx-auto px-4 py-2">
-            <div class="flex justify-between items-center">
-                <div class="flex items-center gap-4">
-                    <span id="mini-status" class="text-white text-sm font-medium">Downloading...</span>
-                    <div class="w-32 bg-gray-700 rounded-full h-1">
-                        <div id="mini-progressBar" class="bg-blue-600 h-1 rounded-full transition-all duration-300" style="width: 0%"></div>
+    <div id="minimized-status-bar" class="statusbar statusbar-mini hidden">
+        <div class="statusbar-inner">
+            <div class="mini-row">
+                <div class="mini-left">
+                    <span id="mini-status" class="mini-title">Downloading...</span>
+                    <div class="mini-progress">
+                        <div id="mini-progressBar" class="mini-fill"></div>
                     </div>
-                    <span id="mini-speed" class="text-gray-400 text-sm">0 MB/s</span>
+                    <span id="mini-speed" class="mini-speed">0 MB/s</span>
                 </div>
-                <div class="flex gap-2">
-                    <button
-                        id="expandStatusBtn"
-                        class="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded font-medium transition-colors text-white text-sm"
-                        title="Expand status bar"
-                    >
-                        ▲
-                    </button>
-                    <button
-                        id="mini-pauseResumeBtn"
-                        class="bg-gray-500 px-3 py-1 rounded font-medium transition-colors text-gray-300 cursor-not-allowed text-sm"
-                        disabled
-                    >
-                        Pause
-                    </button>
-                    <button
-                        id="mini-stopBtn"
-                        class="bg-gray-500 px-3 py-1 rounded font-medium transition-colors text-gray-300 cursor-not-allowed text-sm"
-                        disabled
-                    >
-                        Stop
-                    </button>
+                <div class="mini-actions">
+                    <button id="expandStatusBtn" class="btn btn-ghost btn-sm" title="Expand">&#9652;</button>
+                    <button id="mini-pauseResumeBtn" class="btn btn-warning btn-sm" disabled>Pause</button>
+                    <button id="mini-stopBtn" class="btn btn-danger btn-sm" disabled>Stop</button>
                 </div>
             </div>
         </div>
