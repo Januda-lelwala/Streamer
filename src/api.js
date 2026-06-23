@@ -19,6 +19,7 @@
 
     // Map the old hyphenated channel names to Rust command names.
     const COMMANDS = {
+        'list-torrent-files': 'list_torrent_files',
         'start-stream': 'start_stream',
         'stop-stream': 'stop_stream',
         'launch-media-player': 'launch_media_player',
@@ -96,6 +97,17 @@
             }
             let args;
             if (channel === 'start-stream') {
+                // `data` may be a bare magnet string (auto file selection) or
+                // an object { magnet, fileId } when a file was chosen.
+                if (data && typeof data === 'object') {
+                    args = {
+                        magnet: data.magnet,
+                        fileId: data.fileId === undefined ? null : data.fileId,
+                    };
+                } else {
+                    args = { magnet: data, fileId: null };
+                }
+            } else if (channel === 'list-torrent-files') {
                 args = { magnet: data };
             } else {
                 args = {};

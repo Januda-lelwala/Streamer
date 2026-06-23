@@ -6,7 +6,7 @@ use tauri::{AppHandle, State};
 use tokio::sync::Mutex;
 
 use search::SearchResponse;
-use torrent::{Launched, TorrentManager};
+use torrent::{Launched, TorrentManager, VideoFile};
 
 struct AppState {
     mgr: Mutex<TorrentManager>,
@@ -18,13 +18,23 @@ async fn search_torrents(query: String, page: u32) -> Result<SearchResponse, Str
 }
 
 #[tauri::command]
+async fn list_torrent_files(
+    state: State<'_, AppState>,
+    magnet: String,
+) -> Result<Vec<VideoFile>, String> {
+    let mgr = state.mgr.lock().await;
+    mgr.list_files(&magnet).await
+}
+
+#[tauri::command]
 async fn start_stream(
     app: AppHandle,
     state: State<'_, AppState>,
     magnet: String,
+    file_id: Option<usize>,
 ) -> Result<String, String> {
     let mut mgr = state.mgr.lock().await;
-    mgr.start_stream(&app, &magnet).await
+    mgr.start_stream(&app, &magnet, file_id).await
 }
 
 #[tauri::command]
@@ -76,6 +86,7 @@ pub fn run() {
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             search_torrents,
+            list_torrent_files,
             start_stream,
             stop_stream,
             pause_stream,

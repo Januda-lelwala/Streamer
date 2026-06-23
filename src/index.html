@@ -220,6 +220,24 @@
         </div>
     </div>
 
+    <!-- Episode / File Selection Modal -->
+    <div id="episodeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center" style="z-index: 9999 !important;">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-2xl font-semibold">Select a file to stream</h2>
+                <button id="closeEpisodeModal" class="text-gray-400 hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <p id="episodeModalTitle" class="text-gray-400 text-sm mb-4 truncate"></p>
+            <div id="episodeList" class="space-y-2 overflow-y-auto pr-1">
+                <!-- File buttons inserted here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Bottom Status Bar -->
     <div id="bottom-status-bar" class="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 z-50">
         <div class="container mx-auto px-4 py-3">

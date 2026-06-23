@@ -49,6 +49,17 @@ pub struct Launched {
     file_name: String,
 }
 
+/// A selectable video file inside a torrent (e.g. one episode of a series).
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VideoFile {
+    /// Index of the file within the torrent — used as librqbit's file id.
+    pub file_id: usize,
+    pub name: String,
+    pub size: u64,
+    pub size_human: String,
+}
+
 #[derive(Clone, Serialize)]
 struct Message {
     message: String,
@@ -107,7 +118,54 @@ impl TorrentManager {
         }
     }
 
-    pub async fn start_stream(&mut self, app: &AppHandle, magnet: &str) -> Result<String, String> {
+    /// List the video files contained in a torrent without downloading it, so
+    /// the user can choose which one (e.g. which episode) to stream.
+    pub async fn list_files(&self, magnet: &str) -> Result<Vec<VideoFile>, String> {
+        if !magnet.starts_with("magnet:") {
+            return Err("Invalid magnet URI format".to_string());
+        }
+
+        let opts = AddTorrentOptions {
+            list_only: true,
+            ..Default::default()
+        };
+
+        let resp = tokio::time::timeout(
+            Duration::from_secs(60),
+            self.api.api_add_torrent(AddTorrent::from_url(magnet), Some(opts)),
+        )
+        .await
+        .map_err(|_| "Timed out reading torrent metadata (no peers?)".to_string())?
+        .map_err(|e| format!("Failed to read torrent: {e}"))?;
+
+        let files = resp.details.files.unwrap_or_default();
+        let mut videos: Vec<VideoFile> = files
+            .iter()
+            .enumerate()
+            .filter(|(_, f)| {
+                VIDEO_EXTS
+                    .iter()
+                    .any(|ext| f.name.to_lowercase().ends_with(ext))
+            })
+            .map(|(idx, f)| VideoFile {
+                file_id: idx,
+                name: f.name.clone(),
+                size: f.length,
+                size_human: format_bytes(f.length),
+            })
+            .collect();
+
+        // Sort by name so episodes appear in a natural order.
+        videos.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        Ok(videos)
+    }
+
+    pub async fn start_stream(
+        &mut self,
+        app: &AppHandle,
+        magnet: &str,
+        file_id: Option<usize>,
+    ) -> Result<String, String> {
         if !magnet.starts_with("magnet:") {
             return Err("Invalid magnet URI format".to_string());
         }
@@ -115,10 +173,17 @@ impl TorrentManager {
         // Clean up any previous stream first.
         self.stop_current().await;
 
+        // If the caller chose a specific file, download only that one;
+        // otherwise fall back to "all video files" and auto-pick the largest.
         let opts = AddTorrentOptions {
             output_folder: Some(self.temp_dir.to_string_lossy().to_string()),
             overwrite: true,
-            only_files_regex: Some(ONLY_FILES_REGEX.to_string()),
+            only_files: file_id.map(|id| vec![id]),
+            only_files_regex: if file_id.is_some() {
+                None
+            } else {
+                Some(ONLY_FILES_REGEX.to_string())
+            },
             ..Default::default()
         };
 
@@ -155,29 +220,39 @@ impl TorrentManager {
         let output_folder = PathBuf::from(&details.output_folder);
         let files = details.files.unwrap_or_default();
 
-        // Pick the largest included video file.
-        let mut best: Option<(u64, Vec<String>)> = None;
-        for f in &files {
-            let is_video = VIDEO_EXTS
-                .iter()
-                .any(|ext| f.name.to_lowercase().ends_with(ext));
-            if !f.included || !is_video {
-                continue;
+        // Resolve which file to stream: the explicitly chosen one, or the
+        // largest video file if none was specified.
+        let components: Vec<String> = if let Some(id) = file_id {
+            match files.get(id) {
+                Some(f) => f.components.clone(),
+                None => {
+                    let msg = "Selected file not found in torrent".to_string();
+                    let _ = app.emit("stream-error", Message { message: msg.clone() });
+                    return Err(msg);
+                }
             }
-            if best.as_ref().map(|(len, _)| f.length > *len).unwrap_or(true) {
-                best = Some((f.length, f.components.clone()));
+        } else {
+            let mut best: Option<(u64, Vec<String>)> = None;
+            for f in &files {
+                let is_video = VIDEO_EXTS
+                    .iter()
+                    .any(|ext| f.name.to_lowercase().ends_with(ext));
+                if !f.included || !is_video {
+                    continue;
+                }
+                if best.as_ref().map(|(len, _)| f.length > *len).unwrap_or(true) {
+                    best = Some((f.length, f.components.clone()));
+                }
             }
-        }
-
-        let (_len, components) = best.ok_or_else(|| {
-            let _ = app.emit(
-                "stream-error",
-                Message {
-                    message: "No supported video file found in torrent".to_string(),
-                },
-            );
-            "No supported video file found in torrent".to_string()
-        })?;
+            match best {
+                Some((_, c)) => c,
+                None => {
+                    let msg = "No supported video file found in torrent".to_string();
+                    let _ = app.emit("stream-error", Message { message: msg.clone() });
+                    return Err(msg);
+                }
+            }
+        };
 
         let mut file_path = output_folder;
         for c in &components {
@@ -311,6 +386,17 @@ impl TorrentManager {
         let _ = app.emit("media-player-launched", launched.clone());
         Ok(launched)
     }
+}
+
+fn format_bytes(bytes: u64) -> String {
+    if bytes == 0 {
+        return "0 Bytes".to_string();
+    }
+    const UNITS: [&str; 5] = ["Bytes", "KB", "MB", "GB", "TB"];
+    let k = 1024f64;
+    let b = bytes as f64;
+    let i = ((b.ln() / k.ln()).floor() as usize).min(UNITS.len() - 1);
+    format!("{:.2} {}", b / k.powi(i as i32), UNITS[i])
 }
 
 fn resolve_vlc_path() -> Result<String, String> {

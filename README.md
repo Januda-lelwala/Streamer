@@ -85,8 +85,10 @@ src-tauri/
 
 ## Notes & caveats
 
-- Only video files (`.mp4`, `.mkv`, `.webm`, `.avi`, `.mov`) are downloaded
-  from a torrent; the largest one is selected for playback.
+- When a torrent contains a single video file (a typical movie) it streams
+  immediately. When it contains several (e.g. a TV-series pack), a picker lets
+  you choose which file/episode to stream, and only that file is downloaded.
+- Recognized video extensions: `.mp4`, `.mkv`, `.webm`, `.avi`, `.mov`.
 - Playback launches the system VLC binary
   (`/Applications/VLC.app/Contents/MacOS/VLC` on macOS, `vlc` on PATH
   elsewhere). Install VLC if it is not found.

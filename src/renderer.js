@@ -890,7 +890,7 @@ function displayResults(data) {
         // Add click handlers to result items
         document.querySelectorAll('#resultsContainer > div').forEach((item, index) => {
             const result = validResults[index];
-            item.addEventListener('click', () => startStream(result.magnet, result.name));
+            item.addEventListener('click', () => onSelectTorrent(result.magnet, result.name));
         });
         
         // Setup pagination controls
@@ -1010,7 +1010,98 @@ function createEllipsis() {
     return span;
 }
 
-async function startStream(magnet, name) {
+// Entry point when a search result is clicked. Inspects the torrent's
+// contents and, if it holds more than one video file (e.g. a TV series),
+// lets the user pick which episode to stream before downloading.
+async function onSelectTorrent(magnet, name) {
+    const statusText = document.getElementById('status-text');
+    const statusEl = document.getElementById('status');
+    if (statusEl) statusEl.textContent = 'Reading torrent contents...';
+    if (statusText) statusText.textContent = `Inspecting: ${name}`;
+
+    let files;
+    try {
+        files = await window.api.invoke('list-torrent-files', magnet);
+    } catch (error) {
+        console.error('Error listing torrent files:', error);
+        // If we couldn't read the file list, fall back to auto file selection.
+        startStream(magnet, name, null);
+        return;
+    }
+
+    if (!files || files.length === 0) {
+        // No video files reported; let the backend try its best.
+        startStream(magnet, name, null);
+        return;
+    }
+
+    if (files.length === 1) {
+        // Single video (typical movie) — stream it directly.
+        startStream(magnet, name, files[0].fileId);
+        return;
+    }
+
+    // Multiple video files — show the episode/file picker.
+    showEpisodeModal(magnet, name, files);
+}
+
+// Populate and open the file-selection modal.
+function showEpisodeModal(magnet, name, files) {
+    const modal = document.getElementById('episodeModal');
+    const list = document.getElementById('episodeList');
+    const title = document.getElementById('episodeModalTitle');
+    if (!modal || !list) return;
+
+    if (title) title.textContent = `${name} — ${files.length} files`;
+
+    list.innerHTML = files
+        .map(
+            (f) => `
+            <button
+                type="button"
+                data-file-id="${f.fileId}"
+                class="w-full text-left bg-gray-700 hover:bg-blue-600 transition-colors rounded-lg p-3 flex justify-between items-center gap-4"
+            >
+                <span class="truncate" title="${f.name.replace(/"/g, '&quot;')}">${f.name}</span>
+                <span class="text-sm text-gray-300 whitespace-nowrap">${f.sizeHuman}</span>
+            </button>`
+        )
+        .join('');
+
+    list.querySelectorAll('button[data-file-id]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const fileId = parseInt(btn.getAttribute('data-file-id'), 10);
+            closeEpisodeModal();
+            startStream(magnet, name, fileId);
+        });
+    });
+
+    modal.classList.remove('hidden');
+}
+
+function closeEpisodeModal() {
+    const modal = document.getElementById('episodeModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// Wire up the episode modal's close affordances once.
+function initEpisodeModal() {
+    const modal = document.getElementById('episodeModal');
+    const closeBtn = document.getElementById('closeEpisodeModal');
+    if (closeBtn) closeBtn.addEventListener('click', closeEpisodeModal);
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeEpisodeModal();
+        });
+    }
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+            closeEpisodeModal();
+        }
+    });
+}
+
+async function startStream(magnet, name, fileId = null) {
     // Show loading state
     const statusElement = document.getElementById('status-text');
     if (statusElement) {
@@ -1049,7 +1140,7 @@ async function startStream(magnet, name) {
     
     try {
         // Send request to start the stream using invoke for proper response handling
-        const result = await window.api.invoke('start-stream', magnet);
+        const result = await window.api.invoke('start-stream', { magnet, fileId });
         
         // Update status
         if (statusElement) {
@@ -1195,6 +1286,7 @@ function browseDirectory() {
 document.addEventListener('DOMContentLoaded', () => {
     initSettingsModal();
     initSettings();
+    initEpisodeModal();
     initBottomStatusBar();
     // Initialize status bar to idle state
     setStatusBarIdle();
