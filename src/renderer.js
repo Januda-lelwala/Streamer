@@ -32,7 +32,9 @@ const elements = {
 // Function to launch the media player
 async function launchMediaPlayer() {
     try {
-        await window.api.invoke('launch-media-player');
+        await window.api.invoke('launch-media-player', {
+            player: getMediaPlayerPreference()
+        });
     } catch (error) {
         console.error('Error launching media player:', error);
         updateElement('status', 'Player launch failed');
@@ -102,8 +104,8 @@ window.api.receive('media-player-ready', (data) => {
 // Handle media player launched event
 window.api.receive('media-player-launched', (data) => {
     console.log('Media player launched:', data);
-    updateElement('status', 'Media player launched');
-    updateElement('status-text', data.fileName || 'Playing in VLC');
+    updateElement('status', `${data.player || 'Media player'} launched`);
+    updateElement('status-text', data.fileName || 'Playing in media player');
 });
 
 // Function to update progress display
@@ -827,12 +829,18 @@ function initSettings() {
     loadSettings();
 }
 
+function getMediaPlayerPreference() {
+    return document.getElementById('mediaPlayerPreference')?.value ||
+        localStorage.getItem('streamer.mediaPlayerPreference') ||
+        'auto';
+}
+
 function loadSettings() {
     // Load settings from storage or use defaults
     const settings = {
         downloadPath: '/tmp/torrent-streamer',
         minDownloadSize: 1024,
-        vlcPath: '/Applications/VLC.app/Contents/MacOS/VLC',
+        mediaPlayerPreference: getMediaPlayerPreference(),
         maxDownloadSpeed: 0,
         maxUploadSpeed: 0
     };
@@ -840,13 +848,13 @@ function loadSettings() {
     // Apply settings to UI
     const downloadPathInput = document.getElementById('downloadPath');
     const minDownloadSizeSelect = document.getElementById('minDownloadSize');
-    const vlcPathInput = document.getElementById('vlcPath');
+    const mediaPlayerPreferenceSelect = document.getElementById('mediaPlayerPreference');
     const maxDownloadSpeedInput = document.getElementById('maxDownloadSpeed');
     const maxUploadSpeedInput = document.getElementById('maxUploadSpeed');
     
     if (downloadPathInput) downloadPathInput.value = settings.downloadPath;
     if (minDownloadSizeSelect) minDownloadSizeSelect.value = settings.minDownloadSize;
-    if (vlcPathInput) vlcPathInput.value = settings.vlcPath;
+    if (mediaPlayerPreferenceSelect) mediaPlayerPreferenceSelect.value = settings.mediaPlayerPreference;
     if (maxDownloadSpeedInput) maxDownloadSpeedInput.value = settings.maxDownloadSpeed;
     if (maxUploadSpeedInput) maxUploadSpeedInput.value = settings.maxUploadSpeed;
 }
@@ -854,19 +862,19 @@ function loadSettings() {
 function saveSettings() {
     const downloadPath = document.getElementById('downloadPath')?.value || '/tmp/torrents';
     const minDownloadSize = parseInt(document.getElementById('minDownloadSize')?.value) || 1024;
-    const vlcPath = document.getElementById('vlcPath')?.value || '';
+    const mediaPlayerPreference = document.getElementById('mediaPlayerPreference')?.value || 'auto';
     const maxDownloadSpeed = parseInt(document.getElementById('maxDownloadSpeed')?.value) || 0;
     const maxUploadSpeed = parseInt(document.getElementById('maxUploadSpeed')?.value) || 0;
     
     const settings = {
         downloadPath,
         minDownloadSize,
-        vlcPath,
+        mediaPlayerPreference,
         maxDownloadSpeed,
         maxUploadSpeed
     };
     
-    // Save settings (for now just log, later we'll implement actual saving)
+    localStorage.setItem('streamer.mediaPlayerPreference', mediaPlayerPreference);
     console.log('Settings saved:', settings);
     
     // Show success message

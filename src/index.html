@@ -113,11 +113,14 @@
                     </div>
                     <div class="setting-row">
                         <div>
-                            <div class="setting-label">VLC Path</div>
-                            <div class="setting-desc">Custom VLC path (leave empty for auto-detect)</div>
+                            <div class="setting-label">Preferred Player</div>
+                            <div class="setting-desc">Choose Auto, IINA, or VLC for playback</div>
                         </div>
-                        <input type="text" id="vlcPath" class="field path-field"
-                            placeholder="/Applications/VLC.app/Contents/MacOS/VLC">
+                        <select id="mediaPlayerPreference" class="field">
+                            <option value="auto" selected>Auto (IINA, then VLC)</option>
+                            <option value="iina">IINA</option>
+                            <option value="vlc">VLC</option>
+                        </select>
                     </div>
                 </div>
 

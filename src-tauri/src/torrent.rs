@@ -5,7 +5,7 @@
 //!   * add a magnet link, downloading only video files into a temp dir,
 //!   * report download progress to the UI via Tauri events,
 //!   * tell the UI when enough has downloaded to launch a media player,
-//!   * launch VLC pointed at the (partially downloaded) file,
+//!   * launch IINA or VLC pointed at the (partially downloaded) file,
 //!   * pause / resume / stop the active stream.
 
 use std::path::PathBuf;
@@ -47,6 +47,7 @@ struct MediaReady {
 pub struct Launched {
     file_path: String,
     file_name: String,
+    player: String,
 }
 
 /// A selectable video file inside a torrent (e.g. one episode of a series).
@@ -77,7 +78,7 @@ struct Current {
     id: usize,
     file_path: PathBuf,
     file_name: String,
-    vlc: Option<Child>,
+    media_player: Option<Child>,
     progress_task: Option<tauri::async_runtime::JoinHandle<()>>,
 }
 
@@ -101,20 +102,17 @@ impl TorrentManager {
         TorrentIdOrHash::from(id)
     }
 
-    /// Tear down any in-flight stream: kill VLC, stop progress reporting and
+    /// Tear down any in-flight stream: kill the media player, stop progress reporting and
     /// remove the torrent (deleting its files).
     pub async fn stop_current(&mut self) {
         if let Some(mut cur) = self.current.take() {
             if let Some(task) = cur.progress_task.take() {
                 task.abort();
             }
-            if let Some(mut child) = cur.vlc.take() {
+            if let Some(mut child) = cur.media_player.take() {
                 let _ = child.kill();
             }
-            let _ = self
-                .api
-                .api_torrent_action_delete(Self::idh(cur.id))
-                .await;
+            let _ = self.api.api_torrent_action_delete(Self::idh(cur.id)).await;
         }
     }
 
@@ -132,7 +130,8 @@ impl TorrentManager {
 
         let resp = tokio::time::timeout(
             Duration::from_secs(60),
-            self.api.api_add_torrent(AddTorrent::from_url(magnet), Some(opts)),
+            self.api
+                .api_add_torrent(AddTorrent::from_url(magnet), Some(opts)),
         )
         .await
         .map_err(|_| "Timed out reading torrent metadata (no peers?)".to_string())?
@@ -193,7 +192,9 @@ impl TorrentManager {
             .await
             .map_err(|e| format!("Failed to add torrent: {e}"))?;
 
-        let id = resp.id.ok_or_else(|| "Torrent was not assigned an id".to_string())?;
+        let id = resp
+            .id
+            .ok_or_else(|| "Torrent was not assigned an id".to_string())?;
         let idh = Self::idh(id);
 
         // Wait for metadata so the file list is available.
@@ -227,7 +228,12 @@ impl TorrentManager {
                 Some(f) => f.components.clone(),
                 None => {
                     let msg = "Selected file not found in torrent".to_string();
-                    let _ = app.emit("stream-error", Message { message: msg.clone() });
+                    let _ = app.emit(
+                        "stream-error",
+                        Message {
+                            message: msg.clone(),
+                        },
+                    );
                     return Err(msg);
                 }
             }
@@ -240,7 +246,11 @@ impl TorrentManager {
                 if !f.included || !is_video {
                     continue;
                 }
-                if best.as_ref().map(|(len, _)| f.length > *len).unwrap_or(true) {
+                if best
+                    .as_ref()
+                    .map(|(len, _)| f.length > *len)
+                    .unwrap_or(true)
+                {
                     best = Some((f.length, f.components.clone()));
                 }
             }
@@ -248,7 +258,12 @@ impl TorrentManager {
                 Some((_, c)) => c,
                 None => {
                     let msg = "No supported video file found in torrent".to_string();
-                    let _ = app.emit("stream-error", Message { message: msg.clone() });
+                    let _ = app.emit(
+                        "stream-error",
+                        Message {
+                            message: msg.clone(),
+                        },
+                    );
                     return Err(msg);
                 }
             }
@@ -276,7 +291,7 @@ impl TorrentManager {
             id,
             file_path,
             file_name,
-            vlc: None,
+            media_player: None,
             progress_task: Some(task),
         });
 
@@ -347,7 +362,11 @@ impl TorrentManager {
         Ok("Stream resumed successfully".to_string())
     }
 
-    pub async fn launch_media_player(&mut self, app: &AppHandle) -> Result<Launched, String> {
+    pub async fn launch_media_player(
+        &mut self,
+        app: &AppHandle,
+        player_preference: Option<&str>,
+    ) -> Result<Launched, String> {
         let cur = self
             .current
             .as_mut()
@@ -357,31 +376,24 @@ impl TorrentManager {
             return Err("Media file not found. Please wait for download to start.".to_string());
         }
 
-        let vlc_path = resolve_vlc_path()?;
+        let player = resolve_media_player(player_preference)?;
 
         // Kill any previously launched player.
-        if let Some(mut child) = cur.vlc.take() {
+        if let Some(mut child) = cur.media_player.take() {
             let _ = child.kill();
         }
 
-        let child = std::process::Command::new(&vlc_path)
-            .arg("--fullscreen")
-            .arg("--no-video-title-show")
-            .arg("--no-osd")
-            .arg(&cur.file_path)
-            .spawn()
-            .map_err(|e| {
-                format!(
-                    "Failed to start VLC ({}). Please install VLC from https://www.videolan.org/vlc/ ({e})",
-                    vlc_path
-                )
+        let child =
+            player.command().arg(&cur.file_path).spawn().map_err(|e| {
+                format!("Failed to start {} ({}). {e}", player.name, player.command)
             })?;
 
-        cur.vlc = Some(child);
+        cur.media_player = Some(child);
 
         let launched = Launched {
             file_path: cur.file_path.to_string_lossy().to_string(),
             file_name: cur.file_name.clone(),
+            player: player.name.to_string(),
         };
         let _ = app.emit("media-player-launched", launched.clone());
         Ok(launched)
@@ -399,17 +411,92 @@ fn format_bytes(bytes: u64) -> String {
     format!("{:.2} {}", b / k.powi(i as i32), UNITS[i])
 }
 
-fn resolve_vlc_path() -> Result<String, String> {
-    if cfg!(target_os = "macos") {
-        let p = "/Applications/VLC.app/Contents/MacOS/VLC";
-        if std::path::Path::new(p).exists() {
-            Ok(p.to_string())
-        } else {
-            Err("VLC not found at /Applications/VLC.app. Please install VLC Media Player.".to_string())
+struct MediaPlayerCommand {
+    name: &'static str,
+    command: String,
+    args: Vec<String>,
+}
+
+impl MediaPlayerCommand {
+    fn command(&self) -> std::process::Command {
+        let mut command = std::process::Command::new(&self.command);
+        command.args(&self.args);
+        command
+    }
+}
+
+fn resolve_media_player(preference: Option<&str>) -> Result<MediaPlayerCommand, String> {
+    let preference = preference.unwrap_or("auto").to_ascii_lowercase();
+    let candidates: &[&str] = match preference.as_str() {
+        "iina" => &["iina"],
+        "vlc" => &["vlc"],
+        _ => {
+            if cfg!(target_os = "macos") {
+                &["iina", "vlc"]
+            } else {
+                &["vlc"]
+            }
         }
+    };
+
+    for candidate in candidates {
+        if let Some(player) = media_player_command(candidate) {
+            return Ok(player);
+        }
+    }
+
+    if cfg!(target_os = "macos") {
+        Err("No supported media player found. Install IINA or VLC, or choose a different player in Settings.".to_string())
     } else {
-        // On Windows / Linux rely on `vlc` being on PATH.
-        Ok("vlc".to_string())
+        Err(
+            "No supported media player found. Install VLC or ensure `vlc` is available on PATH."
+                .to_string(),
+        )
+    }
+}
+
+fn media_player_command(name: &str) -> Option<MediaPlayerCommand> {
+    match name {
+        "iina" if cfg!(target_os = "macos") && macos_app_available("IINA") => {
+            Some(MediaPlayerCommand {
+                name: "IINA",
+                command: "/usr/bin/open".to_string(),
+                args: vec!["-a".to_string(), "IINA".to_string()],
+            })
+        }
+        "vlc" => resolve_vlc_command(),
+        _ => None,
+    }
+}
+
+fn macos_app_available(app_name: &str) -> bool {
+    std::process::Command::new("/usr/bin/open")
+        .args(["-Ra", app_name])
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
+fn resolve_vlc_command() -> Option<MediaPlayerCommand> {
+    if cfg!(target_os = "macos") {
+        let path = "/Applications/VLC.app/Contents/MacOS/VLC";
+        std::path::Path::new(path)
+            .exists()
+            .then(|| MediaPlayerCommand {
+                name: "VLC",
+                command: path.to_string(),
+                args: vec![
+                    "--fullscreen".to_string(),
+                    "--no-video-title-show".to_string(),
+                    "--no-osd".to_string(),
+                ],
+            })
+    } else {
+        Some(MediaPlayerCommand {
+            name: "VLC",
+            command: "vlc".to_string(),
+            args: Vec::new(),
+        })
     }
 }
 
@@ -436,7 +523,10 @@ fn spawn_progress_loop(
                 .get("progress_bytes")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(0);
-            let total = value.get("total_bytes").and_then(|v| v.as_u64()).unwrap_or(0);
+            let total = value
+                .get("total_bytes")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
             let done = value
                 .get("finished")
                 .and_then(|v| v.as_bool())

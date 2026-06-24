@@ -109,6 +109,10 @@
                 }
             } else if (channel === 'list-torrent-files') {
                 args = { magnet: data };
+            } else if (channel === 'launch-media-player') {
+                args = {
+                    player: data && typeof data === 'object' ? data.player || null : null,
+                };
             } else {
                 args = {};
             }

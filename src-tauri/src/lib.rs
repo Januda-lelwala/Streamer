@@ -59,9 +59,10 @@ async fn resume_stream(app: AppHandle, state: State<'_, AppState>) -> Result<Str
 async fn launch_media_player(
     app: AppHandle,
     state: State<'_, AppState>,
+    player: Option<String>,
 ) -> Result<Launched, String> {
     let mut mgr = state.mgr.lock().await;
-    mgr.launch_media_player(&app).await
+    mgr.launch_media_player(&app, player.as_deref()).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
