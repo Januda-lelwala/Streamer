@@ -78,6 +78,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Streamer ${{ github.ref_name }}"
-          releaseDraft: true
+          releaseBody: "Download the installer for your platform from the assets below."
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
