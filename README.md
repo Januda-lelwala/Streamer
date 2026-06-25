@@ -22,6 +22,26 @@ The frontend (`src/`) is unchanged HTML/CSS/JS. A small shim
 surface on top of Tauri's `invoke` and event APIs, so `renderer.js` did not
 need to be rewritten.
 
+## Download
+
+Pre-built installers for every platform are available on the
+**[Releases page](https://github.com/Januda-lelwala/Streamer/releases/latest)**.
+
+| Platform | Download | Notes |
+| -------- | -------- | ----- |
+| **Windows** | `Streamer_x.y.z_x64-setup.exe` or `..._x64_en-US.msi` | App is unsigned — SmartScreen shows "unknown publisher"; click **More info → Run anyway**. |
+| **macOS (Apple Silicon)** | `Streamer_x.y.z_aarch64.dmg` | For M1/M2/M3 Macs. |
+| **macOS (Intel)** | `Streamer_x.y.z_x64.dmg` | For Intel Macs. |
+| **Linux** | `Streamer_x.y.z_amd64.AppImage` | Universal — `chmod +x` then run. |
+| **Linux (Debian/Ubuntu)** | `Streamer_x.y.z_amd64.deb` | `sudo apt install ./Streamer_*.deb` |
+| **Linux (Fedora/RHEL)** | `Streamer-x.y.z-1.x86_64.rpm` | `sudo dnf install ./Streamer-*.rpm` |
+
+> On macOS the app is unsigned, so the first launch needs **right-click → Open**
+> (or *System Settings → Privacy & Security → Open Anyway*).
+
+[VLC](https://www.videolan.org/vlc/) must be installed for playback on every
+platform.
+
 ### IPC mapping
 
 | Old `window.api` channel    | Tauri command / event            |
